@@ -11,6 +11,7 @@ services:
     environment:
       - node.name=es
       - ELASTIC_PASSWORD=elastic
+      - xpack.security.enabled=false
 ```
 
 ```yaml
