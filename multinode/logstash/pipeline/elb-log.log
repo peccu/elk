@@ -1,0 +1,74 @@
+# The # character at the beginning of a line indicates a comment. Use
+# comments to describe your configuration.
+input {
+  file {
+    path => "/logs/elb/*.log"
+    start_position => "beginning"
+    sincedb_path => "/usr/share/logstash/data/sincedb"
+    # sincedb_path => "/dev/null" #for debug
+  }
+}
+# The filter part of this file is commented out to indicate that it is
+# optional.
+filter {
+  grok {
+    match => { "message" => "%{NOTSPACE:request_type} %{TIMESTAMP_ISO8601:timestamp} %{NOTSPACE:alb_name} %{IP:client_ip}:%{NUMBER:client_port} (?:%{IP:target_ip}:%{NUMBER:target_port}|-) %{NUMBER:request_processing_time} %{NUMBER:target_processing_time} %{NUMBER:response_processing_time} (?:%{NUMBER:elb_status_code}|-) (?:%{NUMBER:target_status_code}|-) %{NUMBER:received_bytes} %{NUMBER:sent_bytes} \"(?:%{WORD:http_method} %{NOTSPACE:http_uri} HTTP/%{NUMBER:http_version}|-)\" \"(?:%{DATA:user_agent}|-)\" (?:%{NOTSPACE:ssl_cipher}|-) (?:%{NOTSPACE:ssl_protocol}|-) %{NOTSPACE:target_group_arn} %{QUOTEDSTRING:trace_id} \"%{DATA:domain_name}\" \"%{DATA:chosen_cert_arn}\" (?:%{NUMBER:matched_rule_priority:int}|-) %{TIMESTAMP_ISO8601:request_creation_time} \"%{DATA:actions_executed}\" \"%{DATA:redirect_url}\" \"%{DATA:error_reason}\"" }
+  }
+
+  date {
+    match => [ "timestamp", "ISO8601" ]
+    target => "@timestamp"
+  }
+
+  mutate {
+    convert => {
+      "client_port" => "integer"
+      "target_port" => "integer"
+      "request_processing_time" => "float"
+      "target_processing_time" => "float"
+      "response_processing_time" => "float"
+      "elb_status_code" => "integer"
+      "target_status_code" => "integer"
+      "received_bytes" => "integer"
+      "sent_bytes" => "integer"
+    }
+  }
+
+  if [http_uri] {
+    grok {
+      match => ["http_uri", "(%{WORD:protocol})?(://)?(%{IPORHOST:domain})?(:)?(%{INT:http_port})?(%{GREEDYDATA:request_uri})?"]
+    }
+  }
+
+  if [target_group_arn] {
+      grok {
+          match => [ "target_group_arn", "arn:aws:%{NOTSPACE:tg-arn_type}:%{NOTSPACE:tg-arn_region}:%{NOTSPACE:tg-arn_aws_account_id}:targetgroup\/%{NOTSPACE:tg-arn_target_group_name}\/%{NOTSPACE:tg-arn_target_group_id}" ]
+      }
+  }
+
+  if [client_ip] {
+      geoip {
+          source => "c_ip"
+          target => "client"
+      }
+  }
+
+  # if [user_agent] {
+  #     useragent {
+  #         source => "user_agent"
+  #         prefix => "ua_"
+  #     }
+  # }
+}
+output {
+    # stdout { codec => rubydebug }
+    elasticsearch {
+        hosts => [ "https://es01:9200" ]
+        index => "elb-log"
+        # index => "elb-logs-%{+YYYY.MM.dd}"
+        user => "elastic"
+        password => "elastic"
+        ssl_enabled => true
+        ssl_certificate_authorities => "/usr/share/logstash/config/certs/ca/ca.crt"
+    }
+}
