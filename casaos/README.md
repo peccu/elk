@@ -11,7 +11,6 @@ services:
     environment:
       - node.name=es
       - ELASTIC_PASSWORD=elastic
-      - bootstrap.memory_lock=true
 ```
 
 ```yaml
