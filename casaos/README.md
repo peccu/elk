@@ -12,6 +12,7 @@ services:
       - node.name=es
       - ELASTIC_PASSWORD=elastic
       - xpack.security.enabled=false
+      - discovery.type=single-node
 ```
 
 ```yaml
