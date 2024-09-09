@@ -1,5 +1,13 @@
 # for [CasaOS](http://casaos.io)
 
+You need to change `vm.max_map_count` to 262144 or more before start elasticsearch. [Ref](https://www.elastic.co/guide/en/elasticsearch/reference/8.15/_maximum_map_count_check.html)
+
+```bash
+$ echo | sudo tee -a /etc/sysctl.conf
+$ echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.conf
+$ reboot
+```
+
 ```yaml
 services:
   es:
